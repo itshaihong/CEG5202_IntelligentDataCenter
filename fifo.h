@@ -22,3 +22,26 @@
  * Declare get_fifo_occupancy(fifo)
  * Define FIFO data structures
  */
+
+#ifndef FIFO_H
+#define FIFO_H
+
+#include <stdint.h>
+
+
+typedef struct {
+    float *data;
+    int head;
+    int tail;
+    int count;
+    int size;
+} FIFO;
+
+// Function prototypes
+void FIFO_Init(FIFO* fifoPtr);
+int FIFO_Write(FIFO* fifoPtr, int value);
+int FIFO_Read(FIFO* fifoPtr, int* value);
+int FIFO_IsFull(FIFO* fifoPtr);
+int FIFO_IsEmpty(FIFO* fifoPtr);
+
+#endif
