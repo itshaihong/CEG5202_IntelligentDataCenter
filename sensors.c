@@ -20,11 +20,12 @@
 
 #include "sensors.h"
 
-#define SUCCESS 1
-#define FAILURE 0
 
+/***********************************************
+ * initializing sensors, sensors params
+ * and sensor FIFO
+ ***********************************************/
 int sensors_init(){
-
 	int status;
 
 	status = HAL_Init();
@@ -32,44 +33,100 @@ int sensors_init(){
 
 	status = BSP_ACCELERO_Init();
 	if(status != ACCELERO_OK){ return FAILURE;}
-	accel.fifo_depth = 32;
 	accel.interval = 1000;
+	accel_FIFO.size = 32;
 	FIFO_Init(&accel_FIFO);
-
 
 	status = BSP_GYRO_Init();
 	if(status != GYRO_OK){ return FAILURE;}
-	gyro.fifo_depth = 32;
 	gyro.interval = 1000;
+	gyro_FIFO.size = 32;
 	FIFO_Init(&gyro_FIFO);
 
 	status = BSP_MAGNETO_Init();
 	if(status != MAGNETO_OK){ return FAILURE;}
-	mag.fifo_depth = 32;
 	mag.interval = 1000;
+	mag_FIFO.size = 32;
 	FIFO_Init(&mag_FIFO);
 
 	status = BSP_TSENSOR_Init();
 	if(status != TSENSOR_OK){ return FAILURE;}
-	temp.fifo_depth = 32;
 	temp.interval = 1000;
+	temp_FIFO.size = 32;
 	FIFO_Init(&temp_FIFO);
 
 	status = BSP_HSENSOR_Init();
 	if(status != HSENSOR_OK){ return FAILURE;}
-	humid.fifo_depth = 32;
 	humid.interval = 1000;
+	humid_FIFO.size = 32;
 	FIFO_Init(&humid_FIFO);
 
 	status = BSP_PSENSOR_Init();
 	if(status != PSENSOR_OK){ return FAILURE;}
-	press.fifo_depth = 32;
 	press.interval = 1000;
+	press_FIFO.size = 32;
 	FIFO_Init(&press_FIFO);
 
 	return SUCCESS;
 }
 
+
+/***********************************************
+ * Monitor sensor abnormal activity.
+ * If notification received, proceed to actions
+ * based on notification category.
+ *
+ * TODO: decide to have 1 monitor task or have
+ * individual montor tasks for each sensor
+ ***********************************************/
+void vMonitoringTask(void *pvParameters) {
+    uint32_t ulNotificationValue;
+
+    for (;;) {
+        // Wait indefinitely for a notification
+        xTaskNotifyWait(
+            0x00,            // Do not clear any notification bits on entry
+            ULONG_MAX,       // Clear all bits on exit
+            &ulNotificationValue, // Stores the notification value
+            portMAX_DELAY);  // Wait indefinitely
+
+        // Handle the notifications based on the bitmask
+        if (ulNotificationValue & ACCEL_NOTIFICATION) {
+            // Handle abnormal accelerometer data
+        }
+        if (ulNotificationValue & GYRO_NOTIFICATION) {
+            // Handle abnormal gyroscope data
+        }
+        if (ulNotificationValue & MAG_NOTIFICATION) {
+            // Handle abnormal magnetometer data
+        }
+        if (ulNotificationValue & TEMP_NOTIFICATION_HIGH) {
+            // Handle abnormal temperature data
+        }
+        if (ulNotificationValue & TEMP_NOTIFICATION_LOW) {
+            // Handle abnormal temperature data
+        }
+        if (ulNotificationValue & HUMID_NOTIFICATION_HIGH) {
+            // Handle abnormal humidity data
+        }
+        if (ulNotificationValue & HUMID_NOTIFICATION_LOW) {
+            // Handle abnormal humidity data
+        }
+        if (ulNotificationValue & PRESS_NOTIFICATION_HIGH) {
+            // Handle abnormal pressure data
+        }
+        if (ulNotificationValue & PRESS_NOTIFICATION_LOW) {
+            // Handle abnormal pressure data
+        }
+    }
+}
+
+
+/***********************************************
+ * Sensor tasks:
+ * 	poll sensors, notify monitor task if there's
+ * 	abormal reading.
+ ***********************************************/
 void vAccelSensorTask(void *pvParameters) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
     float accel_fifo_buffer[accel.fifo_depth];
@@ -84,6 +141,13 @@ void vAccelSensorTask(void *pvParameters) {
 		accel_data[1] = (float)accel_data_i16[1] / 100.0f;
 		accel_data[2] = (float)accel_data_i16[2] / 100.0f;
 
+        // Check if data is abnormal
+        if (accel_data[0] > 9.8 || accel_data[0] < -9.8 ||
+        		accel_data[1] > 9.8 || accel_data[1] < -9.8 ||
+				accel_data[2] > 9.8 || accel_data[2] < -9.8) {
+            // Notify the monitoring task with the unique bitmask
+            xTaskNotify(xMonitoringTaskHandle, ACCEL_NOTIFICATION, eSetBits);
+        }
 
         if (!FIFO_Write(&accel_fifo, accel_data)) {
                     // Handle overflow, e.g., log an error or discard the oldest value
@@ -106,6 +170,14 @@ void vGyroSensorTask(void *pvParameters) {
 		gyro_data[0] = (float)gyro_data_i16[0] / 100.0f;
 		gyro_data[1] = (float)gyro_data_i16[1] / 100.0f;
 		gyro_data[2] = (float)gyro_data_i16[2] / 100.0f;
+
+		// TODO: Check if data is abnormal, confirm threshold values
+        if (gyro_data[0] > 5 || gyro_data[0] < -5 ||
+        		gyro_data[1] > 5 || gyro_data[1] < -5 ||
+				gyro_data[2] > 5 || gyro_data[2] < -5) {
+            // Notify the monitoring task with the unique bitmask
+            xTaskNotify(xMonitoringTaskHandle, GYRO_NOTIFICATION, eSetBits);
+        }
 
 
         if (!FIFO_Write(&gyro_fifo, gyro_data)) {
@@ -130,6 +202,15 @@ void vMagSensorTask(void *pvParameters) {
 		mag_data[1] = (float)mag_data_i16[1] / 100.0f;
 		mag_data[2] = (float)mag_data_i16[2] / 100.0f;
 
+        // TODO: Check if data is abnormal, confirm threshold values
+        if (mag_data[0] > 50 || mag_data[0] < -50 ||
+        		mag_data[1] > 50 || mag_data[1] < -50 ||
+				mag_data[2] > 50 || mag_data[2] < -50) {
+            // Notify the monitoring task with the unique bitmask
+            xTaskNotify(xMonitoringTaskHandle, GYRO_NOTIFICATION, eSetBits);
+        }
+
+
 
         if (!FIFO_Write(&mag_fifo, mag_data)) {
                     // Handle overflow, e.g., log an error or discard the oldest value
@@ -150,6 +231,17 @@ void vTempSensorTask(void *pvParameters) {
 
         float temp_data = BSP_TSENSOR_ReadTemp();
 
+        //Check if data is abnormal
+        if (temp_data > 27) {
+            // Notify the monitoring task with the unique bitmask
+            xTaskNotify(xMonitoringTaskHandle, TEMP_NOTIFICATION_HIGH, eSetBits);
+        }
+        if (temp_data < 18) {
+            // Notify the monitoring task with the unique bitmask
+            xTaskNotify(xMonitoringTaskHandle, TEMP_NOTIFICATION_LOW, eSetBits);
+        }
+
+
         if (!FIFO_Write(&temp_fifo, temp_data)) {
                     // Handle overflow, e.g., log an error or discard the oldest value
         }
@@ -164,6 +256,17 @@ void vHumidSensorTask(void *pvParameters) {
     for (;;) {
 
         float humid_data = BSP_HSENSOR_ReadHumidity();
+
+        //TODO: check threshold. Check if data is abnormal
+        if (humid_data > 70) {
+            // Notify the monitoring task with the unique bitmask
+            xTaskNotify(xMonitoringTaskHandle, HUMID_NOTIFICATION_HIGH, eSetBits);
+        }
+        if (humid_data < 30) {
+            // Notify the monitoring task with the unique bitmask
+            xTaskNotify(xMonitoringTaskHandle, HUMID_NOTIFICATION_LOW, eSetBits);
+        }
+
 
         if (!FIFO_Write(&humid_fifo, humid_data)) {
                     // Handle overflow, e.g., log an error or discard the oldest value
@@ -180,6 +283,17 @@ void vPressSensorTask(void *pvParameters) {
     for (;;) {
 
         float press_data = BSP_PSENSOR_ReadPressure();
+
+        //TODO: check threshold. Check if data is abnormal
+        if (press_data > 1020) {
+            // Notify the monitoring task with the unique bitmask
+            xTaskNotify(xMonitoringTaskHandle, PRESS_NOTIFICATION_HIGH, eSetBits);
+        }
+        if (press_data < 980) {
+            // Notify the monitoring task with the unique bitmask
+            xTaskNotify(xMonitoringTaskHandle, PRESS_NOTIFICATION_LOW, eSetBits);
+        }
+
 
         if (!FIFO_Write(&press_fifo, press_data)) {
                     // Handle overflow, e.g., log an error or discard the oldest value

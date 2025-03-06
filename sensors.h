@@ -33,14 +33,27 @@
 #include "../../Drivers/BSP/B-L475E-IOT01/stm32l475e_iot01_hsensor.h"
 #include "../../Drivers/BSP/B-L475E-IOT01/stm32l475e_iot01_psensor.h"
 
-#include "stdio.h"
+#include <stdio.h>
 #include "task.h"
 #include "fifo.h"
+
+#define ACCEL_NOTIFICATION 		(1 << 0)
+#define GYRO_NOTIFICATION  		(1 << 1)
+#define MAG_NOTIFICATION   		(1 << 2)
+#define TEMP_NOTIFICATION_HIGH  (1 << 3)
+#define TEMP_NOTIFICATION_LOW  	(1 << 4)
+#define HUMID_NOTIFICATION_HIGH (1 << 5)
+#define HUMID_NOTIFICATION_LOW 	(1 << 6)
+#define PRESS_NOTIFICATION_HIGH (1 << 7)
+#define PRESS_NOTIFICATION_LOW 	(1 << 8)
+
+
+#define SUCCESS 1
+#define FAILURE 0
 
 typedef void (*callback)(void);
 
 typedef struct{
-	int fifo_depth;
 	int interval;
 	callback interrupt_handler;
 }sensor_data;
@@ -64,5 +77,13 @@ FIFO press_fifo;
 
 int sensors_init();
 int sensors_polling();
+
+void vAccelSensorTask(void *pvParameters);
+void vGyroSensorTask(void *pvParameters);
+void vMagSensorTask(void *pvParameters);
+void vTempSensorTask(void *pvParameters);
+void vHumidSensorTask(void *pvParameters);
+void vPressSensorTask(void *pvParameters);
+
 
 #endif
