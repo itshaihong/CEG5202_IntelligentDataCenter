@@ -34,38 +34,38 @@ int sensors_init(){
 	status = BSP_ACCELERO_Init();
 	if(status != ACCELERO_OK){ return FAILURE;}
 	accel.interval = 1000;
-	accel_FIFO.size = 32;
-	FIFO_Init(&accel_FIFO);
+	accel_fifo.size = 32;
+	FIFO_Init(&accel_fifo);
 
 	status = BSP_GYRO_Init();
 	if(status != GYRO_OK){ return FAILURE;}
 	gyro.interval = 1000;
-	gyro_FIFO.size = 32;
-	FIFO_Init(&gyro_FIFO);
+	gyro_fifo.size = 32;
+	FIFO_Init(&gyro_fifo);
 
 	status = BSP_MAGNETO_Init();
 	if(status != MAGNETO_OK){ return FAILURE;}
 	mag.interval = 1000;
-	mag_FIFO.size = 32;
-	FIFO_Init(&mag_FIFO);
+	mag_fifo.size = 32;
+	FIFO_Init(&mag_fifo);
 
 	status = BSP_TSENSOR_Init();
 	if(status != TSENSOR_OK){ return FAILURE;}
 	temp.interval = 1000;
-	temp_FIFO.size = 32;
-	FIFO_Init(&temp_FIFO);
+	temp_fifo.size = 32;
+	FIFO_Init(&temp_fifo);
 
 	status = BSP_HSENSOR_Init();
 	if(status != HSENSOR_OK){ return FAILURE;}
 	humid.interval = 1000;
-	humid_FIFO.size = 32;
-	FIFO_Init(&humid_FIFO);
+	humid_fifo.size = 32;
+	FIFO_Init(&humid_fifo);
 
 	status = BSP_PSENSOR_Init();
 	if(status != PSENSOR_OK){ return FAILURE;}
 	press.interval = 1000;
-	press_FIFO.size = 32;
-	FIFO_Init(&press_FIFO);
+	press_fifo.size = 32;
+	FIFO_Init(&press_fifo);
 
 	return SUCCESS;
 }
@@ -86,7 +86,7 @@ void vMonitoringTask(void *pvParameters) {
         // Wait indefinitely for a notification
         xTaskNotifyWait(
             0x00,            // Do not clear any notification bits on entry
-            ULONG_MAX,       // Clear all bits on exit
+            UINT32_MAX,       // Clear all bits on exit
             &ulNotificationValue, // Stores the notification value
             portMAX_DELAY);  // Wait indefinitely
 
@@ -129,7 +129,7 @@ void vMonitoringTask(void *pvParameters) {
  ***********************************************/
 void vAccelSensorTask(void *pvParameters) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
-    float accel_fifo_buffer[accel.fifo_depth];
+    float accel_fifo_buffer[accel_fifo.size];
     accel_fifo.data = accel_fifo_buffer;
     for (;;) {
 
@@ -146,7 +146,7 @@ void vAccelSensorTask(void *pvParameters) {
         		accel_data[1] > 9.8 || accel_data[1] < -9.8 ||
 				accel_data[2] > 9.8 || accel_data[2] < -9.8) {
             // Notify the monitoring task with the unique bitmask
-            xTaskNotify(xMonitoringTaskHandle, ACCEL_NOTIFICATION, eSetBits);
+            xTaskNotify(vMonitoringTask, ACCEL_NOTIFICATION, eSetBits);
         }
 
         if (!FIFO_Write(&accel_fifo, accel_data)) {
@@ -159,7 +159,7 @@ void vAccelSensorTask(void *pvParameters) {
 
 void vGyroSensorTask(void *pvParameters) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
-    float gyro_fifo_buffer[gyro.fifo_depth];
+    float gyro_fifo_buffer[gyro_fifo.size];
     gyro_fifo.data = gyro_fifo_buffer;
     for (;;) {
 
@@ -176,7 +176,7 @@ void vGyroSensorTask(void *pvParameters) {
         		gyro_data[1] > 5 || gyro_data[1] < -5 ||
 				gyro_data[2] > 5 || gyro_data[2] < -5) {
             // Notify the monitoring task with the unique bitmask
-            xTaskNotify(xMonitoringTaskHandle, GYRO_NOTIFICATION, eSetBits);
+            xTaskNotify(vMonitoringTask, GYRO_NOTIFICATION, eSetBits);
         }
 
 
@@ -190,7 +190,7 @@ void vGyroSensorTask(void *pvParameters) {
 
 void vMagSensorTask(void *pvParameters) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
-    float mag_fifo_buffer[mag.fifo_depth];
+    float mag_fifo_buffer[mag_fifo.size];
     mag_fifo.data = mag_fifo_buffer;
     for (;;) {
 
@@ -207,7 +207,7 @@ void vMagSensorTask(void *pvParameters) {
         		mag_data[1] > 50 || mag_data[1] < -50 ||
 				mag_data[2] > 50 || mag_data[2] < -50) {
             // Notify the monitoring task with the unique bitmask
-            xTaskNotify(xMonitoringTaskHandle, GYRO_NOTIFICATION, eSetBits);
+            xTaskNotify(vMonitoringTask, GYRO_NOTIFICATION, eSetBits);
         }
 
 
@@ -225,7 +225,7 @@ void vMagSensorTask(void *pvParameters) {
 
 void vTempSensorTask(void *pvParameters) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
-    float temp_fifo_buffer[temp.fifo_depth];
+    float temp_fifo_buffer[temp_fifo.size];
     temp_fifo.data = temp_fifo_buffer;
     for (;;) {
 
@@ -234,11 +234,11 @@ void vTempSensorTask(void *pvParameters) {
         //Check if data is abnormal
         if (temp_data > 27) {
             // Notify the monitoring task with the unique bitmask
-            xTaskNotify(xMonitoringTaskHandle, TEMP_NOTIFICATION_HIGH, eSetBits);
+            xTaskNotify(vMonitoringTask, TEMP_NOTIFICATION_HIGH, eSetBits);
         }
         if (temp_data < 18) {
             // Notify the monitoring task with the unique bitmask
-            xTaskNotify(xMonitoringTaskHandle, TEMP_NOTIFICATION_LOW, eSetBits);
+            xTaskNotify(vMonitoringTask, TEMP_NOTIFICATION_LOW, eSetBits);
         }
 
 
@@ -251,7 +251,7 @@ void vTempSensorTask(void *pvParameters) {
 
 void vHumidSensorTask(void *pvParameters) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
-    float humid_fifo_buffer[humid.fifo_depth];
+    float humid_fifo_buffer[humid_fifo.size];
     humid_fifo.data = humid_fifo_buffer;
     for (;;) {
 
@@ -260,11 +260,11 @@ void vHumidSensorTask(void *pvParameters) {
         //TODO: check threshold. Check if data is abnormal
         if (humid_data > 70) {
             // Notify the monitoring task with the unique bitmask
-            xTaskNotify(xMonitoringTaskHandle, HUMID_NOTIFICATION_HIGH, eSetBits);
+            xTaskNotify(vMonitoringTask, HUMID_NOTIFICATION_HIGH, eSetBits);
         }
         if (humid_data < 30) {
             // Notify the monitoring task with the unique bitmask
-            xTaskNotify(xMonitoringTaskHandle, HUMID_NOTIFICATION_LOW, eSetBits);
+            xTaskNotify(vMonitoringTask, HUMID_NOTIFICATION_LOW, eSetBits);
         }
 
 
@@ -278,7 +278,7 @@ void vHumidSensorTask(void *pvParameters) {
 
 void vPressSensorTask(void *pvParameters) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
-    float press_fifo_buffer[press.fifo_depth];
+    float press_fifo_buffer[press_fifo.size];
     press_fifo.data = press_fifo_buffer;
     for (;;) {
 
@@ -287,11 +287,11 @@ void vPressSensorTask(void *pvParameters) {
         //TODO: check threshold. Check if data is abnormal
         if (press_data > 1020) {
             // Notify the monitoring task with the unique bitmask
-            xTaskNotify(xMonitoringTaskHandle, PRESS_NOTIFICATION_HIGH, eSetBits);
+            xTaskNotify(vMonitoringTask, PRESS_NOTIFICATION_HIGH, eSetBits);
         }
         if (press_data < 980) {
             // Notify the monitoring task with the unique bitmask
-            xTaskNotify(xMonitoringTaskHandle, PRESS_NOTIFICATION_LOW, eSetBits);
+            xTaskNotify(vMonitoringTask, PRESS_NOTIFICATION_LOW, eSetBits);
         }
 
 

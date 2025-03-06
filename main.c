@@ -52,16 +52,18 @@ int main(void)
 
   HAL_Init();
 
-  xTaskCreate(vAccelSensorTask, "Accel Task", 1000, NULL, 1, NULL);
-  xTaskCreate(vGyroSensorTask, "Gyro Task", 1000, NULL, 1, NULL);
-  xTaskCreate(vMagSensorTask, "Mag Task", 1000, NULL, 1, NULL);
-  xTaskCreate(vTempSensorTask, "Temp Task", 1000, NULL, 1, NULL);
-  xTaskCreate(vHumidSensorTask, "Humid Task", 1000, NULL, 1, NULL);
-  xTaskCreate(vPressSensorTask, "Press Task", 1000, NULL, 1, NULL);
+//  xTaskCreate(vAccelSensorTask, "Accel Task", 1000, NULL, 1, NULL);
+//  xTaskCreate(vGyroSensorTask, "Gyro Task", 1000, NULL, 1, NULL);
+//  xTaskCreate(vMagSensorTask, "Mag Task", 1000, NULL, 1, NULL);
+//  xTaskCreate(vTempSensorTask, "Temp Task", 1000, NULL, 1, NULL);
+//  xTaskCreate(vHumidSensorTask, "Humid Task", 1000, NULL, 1, NULL);
+//  xTaskCreate(vPressSensorTask, "Press Task", 1000, NULL, 1, NULL);
 
   vTaskStartScheduler();
 
-  for(;;);
+  while(1){
+
+  }
 
 
 }

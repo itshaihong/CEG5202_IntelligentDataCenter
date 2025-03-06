@@ -34,6 +34,7 @@
 #include "../../Drivers/BSP/B-L475E-IOT01/stm32l475e_iot01_psensor.h"
 
 #include <stdio.h>
+#include "FreeRTOS.h"
 #include "task.h"
 #include "fifo.h"
 
@@ -68,7 +69,7 @@ sensor_data press;
 
 FIFO accel_fifo;
 FIFO gyro_fifo;
-FIFO mag_FIFO;
+FIFO mag_fifo;
 FIFO temp_fifo;
 FIFO humid_fifo;
 FIFO press_fifo;
