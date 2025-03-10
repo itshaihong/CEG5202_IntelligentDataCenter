@@ -37,6 +37,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "fifo.h"
+#include "main.h"
 
 #define ACCEL_NOTIFICATION 		(1 << 0)
 #define GYRO_NOTIFICATION  		(1 << 1)
@@ -60,24 +61,23 @@ typedef struct{
 }sensor_data;
 
 
-sensor_data accel;
-sensor_data gyro;
-sensor_data mag;
-sensor_data temp;
-sensor_data humid;
-sensor_data press;
+extern sensor_data accel;
+extern sensor_data gyro;
+extern sensor_data mag;
+extern sensor_data temp;
+extern sensor_data humid;
+extern sensor_data press;
 
-FIFO accel_fifo;
-FIFO gyro_fifo;
-FIFO mag_fifo;
-FIFO temp_fifo;
-FIFO humid_fifo;
-FIFO press_fifo;
+extern FIFO accel_fifo;
+extern FIFO gyro_fifo;
+extern FIFO mag_fifo;
+extern FIFO temp_fifo;
+extern FIFO humid_fifo;
+extern FIFO press_fifo;
 
 
 
 int sensors_init();
-int sensors_polling();
 
 void vAccelSensorTask(void *pvParameters);
 void vGyroSensorTask(void *pvParameters);

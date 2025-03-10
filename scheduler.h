@@ -23,3 +23,6 @@
  * Declare select_fifo_predictive()
  * Declare Define task handles and scheduling data structures
  */
+
+void vSchedulerTask(void *pvParameters);
+

@@ -21,6 +21,20 @@
 #include "sensors.h"
 
 
+sensor_data accel;
+sensor_data gyro;
+sensor_data mag;
+sensor_data temp;
+sensor_data humid;
+sensor_data press;
+
+FIFO accel_fifo;
+FIFO gyro_fifo;
+FIFO mag_fifo;
+FIFO temp_fifo;
+FIFO humid_fifo;
+FIFO press_fifo;
+
 /***********************************************
  * initializing sensors, sensors params
  * and sensor FIFO
