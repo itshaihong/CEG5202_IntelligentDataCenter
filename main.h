@@ -31,6 +31,7 @@ extern "C" {
 #include "stm32l4xx_hal.h"
 
 void Error_Handler(void);
+void send_uart_message(const char *message);
 
 extern UART_HandleTypeDef huart1;
 

@@ -143,12 +143,15 @@ void vMonitoringTask(void *pvParameters) {
  ***********************************************/
 void vAccelSensorTask(void *pvParameters) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
+
     float accel_fifo_buffer[accel_fifo.size];
     accel_fifo.data = accel_fifo_buffer;
-    for (;;) {
 
-		float accel_data[3];
-		int16_t accel_data_i16[3] = { 0 };			// array to store the x, y and z readings.
+    float accel_data[3];
+    int16_t accel_data_i16[3] = { 0 };
+    char message[50];
+    for (;;) {
+				// array to store the x, y and z readings.
 		BSP_ACCELERO_AccGetXYZ(accel_data_i16);		// read accelerometer
 		// the function above returns 16 bit integers which are 100 * acceleration_in_m/s2. Converting to float to print the actual acceleration.
 		accel_data[0] = (float)accel_data_i16[0] / 100.0f;
@@ -156,13 +159,19 @@ void vAccelSensorTask(void *pvParameters) {
 		accel_data[2] = (float)accel_data_i16[2] / 100.0f;
 
         // Check if data is abnormal
-        if (accel_data[0] > 9.8 || accel_data[0] < -9.8 ||
-        		accel_data[1] > 9.8 || accel_data[1] < -9.8 ||
-				accel_data[2] > 9.8 || accel_data[2] < -9.8) {
-            // Notify the monitoring task with the unique bitmask
-            xTaskNotify(vMonitoringTask, ACCEL_NOTIFICATION, eSetBits);
-        }
+//        if (accel_data[0] > 9.8 || accel_data[0] < -9.8 ||
+//        		accel_data[1] > 9.8 || accel_data[1] < -9.8 ||
+//				accel_data[2] > 9.8 || accel_data[2] < -9.8) {
+//            // Notify the monitoring task with the unique bitmask
+//            xTaskNotify(vMonitoringTask, ACCEL_NOTIFICATION, eSetBits);
+//        }
 
+
+//		  HAL_UART_Transmit(&huart1, message, sizeof(message), 1000);
+		  sprintf(message, "Accel X Y Z -> %6.2f %6.2f %6.2f\r", accel_data[0], accel_data[1], accel_data[2]);
+		  send_uart_message(message);
+
+//
         if (!FIFO_Write(&accel_fifo, accel_data)) {
                     // Handle overflow, e.g., log an error or discard the oldest value
         }
@@ -173,12 +182,15 @@ void vAccelSensorTask(void *pvParameters) {
 
 void vGyroSensorTask(void *pvParameters) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
+
     float gyro_fifo_buffer[gyro_fifo.size];
     gyro_fifo.data = gyro_fifo_buffer;
+
+	float gyro_data[3];
+	float gyro_data_i16[3] = { 0 };
+	char message[50];
     for (;;) {
 
-		float gyro_data[3];
-		int16_t gyro_data_i16[3] = { 0 };
 		BSP_GYRO_GetXYZ(gyro_data_i16);
 		// TODO: divide by 100 or what?
 		gyro_data[0] = (float)gyro_data_i16[0] / 100.0f;
@@ -186,30 +198,39 @@ void vGyroSensorTask(void *pvParameters) {
 		gyro_data[2] = (float)gyro_data_i16[2] / 100.0f;
 
 		// TODO: Check if data is abnormal, confirm threshold values
-        if (gyro_data[0] > 5 || gyro_data[0] < -5 ||
-        		gyro_data[1] > 5 || gyro_data[1] < -5 ||
-				gyro_data[2] > 5 || gyro_data[2] < -5) {
-            // Notify the monitoring task with the unique bitmask
-            xTaskNotify(vMonitoringTask, GYRO_NOTIFICATION, eSetBits);
-        }
+//        if (gyro_data[0] > 5 || gyro_data[0] < -5 ||
+//        		gyro_data[1] > 5 || gyro_data[1] < -5 ||
+//				gyro_data[2] > 5 || gyro_data[2] < -5) {
+//            // Notify the monitoring task with the unique bitmask
+//            xTaskNotify(vMonitoringTask, GYRO_NOTIFICATION, eSetBits);
+//        }
+
+//		HAL_UART_Transmit(&huart1, message, sizeof(message), 1000);
+
+		  sprintf(message, "Gyro X Y Z -> %6.2f %6.2f %6.2f\r", gyro_data[0], gyro_data[1], gyro_data[2]);
+		  send_uart_message(message);
 
 
         if (!FIFO_Write(&gyro_fifo, gyro_data)) {
                     // Handle overflow, e.g., log an error or discard the oldest value
         }
 
-        vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(gyro.interval));
+		vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(gyro.interval));
     }
 }
 
 void vMagSensorTask(void *pvParameters) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
+
     float mag_fifo_buffer[mag_fifo.size];
     mag_fifo.data = mag_fifo_buffer;
+
+	float mag_data[3];
+	int16_t mag_data_i16[3] = { 0 };
+    char message[50];
     for (;;) {
 
-		float mag_data[3];
-		int16_t mag_data_i16[3] = { 0 };
+
 		BSP_MAGNETO_GetXYZ(mag_data_i16);
 		// TODO: divide by 100 or what?
 		mag_data[0] = (float)mag_data_i16[0] / 100.0f;
@@ -217,13 +238,15 @@ void vMagSensorTask(void *pvParameters) {
 		mag_data[2] = (float)mag_data_i16[2] / 100.0f;
 
         // TODO: Check if data is abnormal, confirm threshold values
-        if (mag_data[0] > 50 || mag_data[0] < -50 ||
-        		mag_data[1] > 50 || mag_data[1] < -50 ||
-				mag_data[2] > 50 || mag_data[2] < -50) {
-            // Notify the monitoring task with the unique bitmask
-            xTaskNotify(vMonitoringTask, GYRO_NOTIFICATION, eSetBits);
-        }
+//        if (mag_data[0] > 50 || mag_data[0] < -50 ||
+//        		mag_data[1] > 50 || mag_data[1] < -50 ||
+//				mag_data[2] > 50 || mag_data[2] < -50) {
+//            // Notify the monitoring task with the unique bitmask
+//            xTaskNotify(vMonitoringTask, GYRO_NOTIFICATION, eSetBits);
+//        }
 
+		  sprintf(message, "Magn X Y Z -> %6.2f %6.2f %6.2f\r", mag_data[0], mag_data[1], mag_data[2]);
+		  send_uart_message(message);
 
 
         if (!FIFO_Write(&mag_fifo, mag_data)) {
@@ -239,21 +262,26 @@ void vMagSensorTask(void *pvParameters) {
 
 void vTempSensorTask(void *pvParameters) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
+
     float temp_fifo_buffer[temp_fifo.size];
     temp_fifo.data = temp_fifo_buffer;
+
+    char message[20];
     for (;;) {
 
         float temp_data = BSP_TSENSOR_ReadTemp();
 
         //Check if data is abnormal
-        if (temp_data > 27) {
-            // Notify the monitoring task with the unique bitmask
-            xTaskNotify(vMonitoringTask, TEMP_NOTIFICATION_HIGH, eSetBits);
-        }
-        if (temp_data < 18) {
-            // Notify the monitoring task with the unique bitmask
-            xTaskNotify(vMonitoringTask, TEMP_NOTIFICATION_LOW, eSetBits);
-        }
+//        if (temp_data > 27) {
+//            // Notify the monitoring task with the unique bitmask
+//            xTaskNotify(vMonitoringTask, TEMP_NOTIFICATION_HIGH, eSetBits);
+//        }
+//        if (temp_data < 18) {
+//            // Notify the monitoring task with the unique bitmask
+//            xTaskNotify(vMonitoringTask, TEMP_NOTIFICATION_LOW, eSetBits);
+//        }
+		  sprintf(message, "Temp -> %6.2f\r", temp_data);
+		  send_uart_message(message);
 
 
         if (!FIFO_Write(&temp_fifo, temp_data)) {
@@ -265,21 +293,27 @@ void vTempSensorTask(void *pvParameters) {
 
 void vHumidSensorTask(void *pvParameters) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
+
     float humid_fifo_buffer[humid_fifo.size];
     humid_fifo.data = humid_fifo_buffer;
+
+    char message[20];
     for (;;) {
 
         float humid_data = BSP_HSENSOR_ReadHumidity();
 
         //TODO: check threshold. Check if data is abnormal
-        if (humid_data > 70) {
-            // Notify the monitoring task with the unique bitmask
-            xTaskNotify(vMonitoringTask, HUMID_NOTIFICATION_HIGH, eSetBits);
-        }
-        if (humid_data < 30) {
-            // Notify the monitoring task with the unique bitmask
-            xTaskNotify(vMonitoringTask, HUMID_NOTIFICATION_LOW, eSetBits);
-        }
+//        if (humid_data > 70) {
+//            // Notify the monitoring task with the unique bitmask
+//            xTaskNotify(vMonitoringTask, HUMID_NOTIFICATION_HIGH, eSetBits);
+//        }
+//        if (humid_data < 30) {
+//            // Notify the monitoring task with the unique bitmask
+//            xTaskNotify(vMonitoringTask, HUMID_NOTIFICATION_LOW, eSetBits);
+//        }
+
+        sprintf(message, "Humid -> %6.2f\r", humid_data);
+        send_uart_message(message);
 
 
         if (!FIFO_Write(&humid_fifo, humid_data)) {
@@ -292,21 +326,27 @@ void vHumidSensorTask(void *pvParameters) {
 
 void vPressSensorTask(void *pvParameters) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
+
     float press_fifo_buffer[press_fifo.size];
     press_fifo.data = press_fifo_buffer;
+
+    char message[20];
     for (;;) {
 
         float press_data = BSP_PSENSOR_ReadPressure();
 
         //TODO: check threshold. Check if data is abnormal
-        if (press_data > 1020) {
-            // Notify the monitoring task with the unique bitmask
-            xTaskNotify(vMonitoringTask, PRESS_NOTIFICATION_HIGH, eSetBits);
-        }
-        if (press_data < 980) {
-            // Notify the monitoring task with the unique bitmask
-            xTaskNotify(vMonitoringTask, PRESS_NOTIFICATION_LOW, eSetBits);
-        }
+//        if (press_data > 1020) {
+//            // Notify the monitoring task with the unique bitmask
+//            xTaskNotify(vMonitoringTask, PRESS_NOTIFICATION_HIGH, eSetBits);
+//        }
+//        if (press_data < 980) {
+//            // Notify the monitoring task with the unique bitmask
+//            xTaskNotify(vMonitoringTask, PRESS_NOTIFICATION_LOW, eSetBits);
+//        }
+
+        sprintf(message, "Press -> %6.2f\r", press_data);
+        send_uart_message(message);
 
 
         if (!FIFO_Write(&press_fifo, press_data)) {
