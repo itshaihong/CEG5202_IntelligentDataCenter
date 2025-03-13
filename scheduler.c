@@ -18,29 +18,43 @@
 
 
 #include "scheduler.h"
+#include "sensor.h"
 
 // Function prototypes for internal helper functions
 static int select_fifo_random(SchedulingData *data);
 static int select_fifo_full(SchedulingData *data);
 static int select_fifo_predictive(SchedulingData *data);
 
-// Main task function
+/* SchedulerTask select a fifo to read its data at one time;
+ * selected_index:
+ * 	0 -> accel_fifo
+ * 	1 -> gyro_fifo
+ * 	2 -> mag_fifo
+ * 	3 -> temp_fifo
+ * 	4 -> humid_fifo
+ * 	5 -> press_fifo
+ * */
 void vSchedulerTask(void *pvParameters) {
-    SchedulingData *data = (SchedulingData *)pvParameters;
+	TickType_t xLastWakeTime = xTaskGetTickCount();
+	TickType_t SchedulerInterval = 1000;
+
     int scheme = 0; // Default scheme, should be set externally or passed in
     int selected_fifo = -1;
 
-    while (1) {
+    char message[50];
+    int *data;
+
+    for(;;) {
         // Decide which scheme to use based on the scheme variable
         switch (scheme) {
             case 1:
-                selected_fifo = select_fifo_random(data);
+                selected_fifo = select_fifo_random();
                 break;
             case 2:
-                selected_fifo = select_fifo_full(data);
+                selected_fifo = select_fifo_full();
                 break;
             case 3:
-                selected_fifo = select_fifo_predictive(data);
+                selected_fifo = select_fifo_predictive();
                 break;
             default:
                 // Handle invalid scheme values, could select a default or log an error
@@ -49,49 +63,92 @@ void vSchedulerTask(void *pvParameters) {
         }
 
         // Perform actions with the selected FIFO
-        if (selected_fifo >= 0) {
-            // Example action: Process or read from the selected FIFO
-            // process_fifo(&data->fifos[selected_fifo]);
+        switch(selected_fifo){
+			case 0:
+				FIFO_Read(&accel_fifo, data);
+
+			case 1:
+				FIFO_Read(&gyro_fifo, data);
+
+				sprintf(message, "Scheduler reads Gyro X Y Z -> %6.2f %6.2f %6.2f\r", gyro_data[0], gyro_data[1], gyro_data[2]);
+						        send_uart_message(message);
+			case 2:
+				FIFO_Read(&mag_fifo, data);
+			case 3:
+				FIFO_Read(&temp_fifo, data);
+			case 4:
+				FIFO_Read(&humid_fifo, data);
+			case 5:
+				FIFO_Read(&press_fifo, data);
+
         }
 
-        // Delay the task to allow other tasks to run (adjust delay as needed)
-        vTaskDelay(pdMS_TO_TICKS(100)); // Delay for 100 ms
+
+
+        // Delay the task to allow other tasks to run
+        vTaskDelayUntil(&xLastWakeTime, SchedulerInterval);
     }
 }
 
-// Implementations of FIFO selection schemes
 
-static int select_fifo_random(SchedulingData *data) {
-    if (data->fifo_count <= 0) return -1;
-    return rand() % data->fifo_count;
+/* Random selection scheme: generate a random number from 0 to 5
+ *
+ */
+static int select_fifo_random() {
+    return rand() % 6;
 }
 
-static int select_fifo_full(SchedulingData *data) {
-    int max_occupancy = -1;
-    int selected_index = -1;
+/* Full selection scheme:
+ * 	select the fifo that is least empty (most full)
+ * 	return a number from 0 to 5
+ * */
+static int select_fifo_full() {
 
-    for (size_t i = 0; i < data->fifo_count; ++i) {
-        if (data->fifos[i].occupancy > max_occupancy) {
-            max_occupancy = data->fifos[i].occupancy;
-            selected_index = i;
-        }
+    int emptiness[6];
+
+    emptiness[0] = accel_fifo.size - accel_fifo.count;
+    emptiness[1] = gyro_fifo.size - gyro_fifo.count;
+    emptiness[2] = mag_fifo.size - mag_fifo.count;
+    emptiness[3] = temp_fifo.size - temp_fifo.count;
+    emptiness[4] = humid_fifo.size - humid_fifo.count;
+    emptiness[5] = press_fifo.size - press_fifo.count;
+
+    int min_emptines = emptiness[0];
+    int selected_index = 0;
+
+    for (int i = 1; i < 6; i++){
+    	if(emptiness[i] < min_emptiness){
+    		min_emptiness = emptiness[i];
+    		selected_index = i;
+    	}
     }
+
     return selected_index;
 }
 
-static int select_fifo_predictive(SchedulingData *data) {
-    int earliest_full_time = INT_MAX;
-    int selected_index = -1;
+/* Predictive selection scheme:
+ * 	select the fifo that is going to full the earliest
+ * 	return a number from 0 to 5
+ * */
+static int select_fifo_predictive() {
+    int time_to_full[6];
 
-    for (size_t i = 0; i < data->fifo_count; ++i) {
-        int space_left = data->fifos[i].max_capacity - data->fifos[i].occupancy;
-        if (data->fifos[i].polling_rate > 0) {
-            int time_to_full = space_left / data->fifos[i].polling_rate;
-            if (time_to_full < earliest_full_time) {
-                earliest_full_time = time_to_full;
-                selected_index = i;
-            }
-        }
+    time_to_full[0] = (accel_fifo.size - accel_fifo.count) * accel.interval;
+    time_to_full[1] = (gyro_fifo.size - gyro_fifo.count) * gyro.interval;
+    time_to_full[2] = (mag_fifo.size - mag_fifo.count) * mag.interval;
+    time_to_full[3] = (temp_fifo.size - temp_fifo.count) * temp_interval;
+    time_to_full[4] = (humid_fifo.size - humid_fifo.count) * humid.interval;
+    time_to_full[5] = (press_fifo.size - press_fifo.count) * press.interval;
+
+    int min_time_to_full = time_to_full[0];
+    int selected_index = 0;
+
+    for (int i = 1; i < 6; i++){
+    	if(time_to_full[i] < min_time_to_full){
+    		min_time_to_full = time_to_full[i];
+    		selected_index = i;
+    	}
     }
+
     return selected_index;
 }
