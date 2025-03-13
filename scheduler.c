@@ -65,21 +65,61 @@ void vSchedulerTask(void *pvParameters) {
         // Perform actions with the selected FIFO
         switch(selected_fifo){
 			case 0:
-				FIFO_Read(&accel_fifo, data);
+				if(FIFO_IsEmpty(&accel_fifo)){
+					sprintf(message, "Accel FIFO empty!\r");
+					send_uart_message(message);
+				}
+				else{
+					FIFO_Read(&accel_fifo, data);
+				}
+				break;
 
 			case 1:
-				FIFO_Read(&gyro_fifo, data);
+				if(FIFO_IsEmpty(&gyro_fifo)){
+					sprintf(message, "Gyro FIFO empty!\r");
+					send_uart_message(message);
+				}else{
+					FIFO_Read(&gyro_fifo, data);
+				}
+				break;
 
-				sprintf(message, "Scheduler reads Gyro X Y Z -> %6.2f %6.2f %6.2f\r", gyro_data[0], gyro_data[1], gyro_data[2]);
-						        send_uart_message(message);
 			case 2:
-				FIFO_Read(&mag_fifo, data);
+				if(FIFO_IsEmpty(&mag_fifo)){
+					sprintf(message, "Mag FIFO empty!\r");
+					send_uart_message(message);
+				}else{
+					FIFO_Read(&mag_fifo, data);
+				}
+				break;
+
 			case 3:
-				FIFO_Read(&temp_fifo, data);
+				if(FIFO_IsEmpty(&temp_fifo)){
+					sprintf(message, "Temp FIFO empty!\r");
+					send_uart_message(message);
+				}else{
+					FIFO_Read(&temp_fifo, data);
+				}
+				break;
+
 			case 4:
-				FIFO_Read(&humid_fifo, data);
+				if(FIFO_IsEmpty(&humid_fifo)){
+					sprintf(message, "Humid FIFO empty!\r");
+					send_uart_message(message);
+				}else{
+					FIFO_Read(&humid_fifo, data);
+				}
+				break;
+
 			case 5:
-				FIFO_Read(&press_fifo, data);
+				if(FIFO_IsEmpty(&press_fifo)){
+					sprintf(message, "Press FIFO empty!\r");
+					send_uart_message(message);
+				}else{
+					FIFO_Read(&press_fifo, data);
+				}
+				break;
+
+
 
         }
 
