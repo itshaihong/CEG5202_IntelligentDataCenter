@@ -34,6 +34,9 @@ void Error_Handler(void);
 void send_uart_message(const char *message);
 
 extern UART_HandleTypeDef huart1;
+extern RTC_HandleTypeDef hrtc;
+extern RTC_TimeTypeDef sTime;
+extern RTC_DateTypeDef sDate;
 
 /* Private defines -----------------------------------------------------------*/
 #define M24SR64_Y_RF_DISABLE_Pin GPIO_PIN_2

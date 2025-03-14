@@ -153,7 +153,7 @@ static int select_fifo_full() {
     emptiness[4] = humid_fifo.size - humid_fifo.count;
     emptiness[5] = press_fifo.size - press_fifo.count;
 
-    int min_emptines = emptiness[0];
+    int min_emptiness = emptiness[0];
     int selected_index = 0;
 
     for (int i = 1; i < 6; i++){

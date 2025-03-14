@@ -59,13 +59,13 @@ int sensors_init(){
 
 	status = BSP_MAGNETO_Init();
 	if(status != MAGNETO_OK){ return FAILURE;}
-	mag.interval = 1000;
+	mag.interval = 5000;
 	mag_fifo.size = 32;
 	FIFO_Init(&mag_fifo);
 
 	status = BSP_TSENSOR_Init();
 	if(status != TSENSOR_OK){ return FAILURE;}
-	temp.interval = 1000;
+	temp.interval = 5000;
 	temp_fifo.size = 32;
 	FIFO_Init(&temp_fifo);
 
@@ -170,6 +170,10 @@ void vAccelSensorTask(void *pvParameters) {
 		accel_data.y = (float)accel_data_i16[1] / 100.0f;
 		accel_data.z = (float)accel_data_i16[2] / 100.0f;
 
+
+		HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BCD);
+		HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BCD);
+
         // Check if data is abnormal
 //        if (accel_data[0] > 9.8 || accel_data[0] < -9.8 ||
 //        		accel_data[1] > 9.8 || accel_data[1] < -9.8 ||
@@ -179,8 +183,8 @@ void vAccelSensorTask(void *pvParameters) {
 //        }
 
 
-//		  HAL_UART_Transmit(&huart1, message, sizeof(message), 1000);
-		  sprintf(message, "Accel X Y Z -> %6.2f %6.2f %6.2f\r", accel_data.x, accel_data.y, accel_data.z);
+		sprintf(message, "%02d:%02d:%02d Accel X Y Z -> %6.2f %6.2f %6.2f\r",
+				  sTime.Hours, sTime.Minutes, sTime.Seconds, accel_data.x, accel_data.y, accel_data.z);
 		  send_uart_message(message);
 
 
@@ -216,6 +220,9 @@ void vGyroSensorTask(void *pvParameters) {
 		gyro_data.y = (float)gyro_data_i16[1] / 100.0f;
 		gyro_data.z = (float)gyro_data_i16[2] / 100.0f;
 
+		HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BCD);
+		HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BCD);
+
 		// TODO: Check if data is abnormal, confirm threshold values
 //        if (gyro_data[0] > 5 || gyro_data[0] < -5 ||
 //        		gyro_data[1] > 5 || gyro_data[1] < -5 ||
@@ -224,9 +231,9 @@ void vGyroSensorTask(void *pvParameters) {
 //            xTaskNotify(vMonitoringTask, GYRO_NOTIFICATION, eSetBits);
 //        }
 
-//		HAL_UART_Transmit(&huart1, message, sizeof(message), 1000);
 
-		  sprintf(message, "Gyro X Y Z -> %6.2f %6.2f %6.2f\r", gyro_data.x, gyro_data.y, gyro_data.z);
+		  sprintf(message, "%02d:%02d:%02d Gyro X Y Z -> %6.2f %6.2f %6.2f\r",
+				  sTime.Hours, sTime.Minutes, sTime.Seconds, gyro_data.x, gyro_data.y, gyro_data.z);
 		  send_uart_message(message);
 
 
@@ -261,6 +268,9 @@ void vMagSensorTask(void *pvParameters) {
 		mag_data.y = (float)mag_data_i16[1] / 100.0f;
 		mag_data.z = (float)mag_data_i16[2] / 100.0f;
 
+		HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BCD);
+		HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BCD);
+
         // TODO: Check if data is abnormal, confirm threshold values
 //        if (mag_data[0] > 50 || mag_data[0] < -50 ||
 //        		mag_data[1] > 50 || mag_data[1] < -50 ||
@@ -269,7 +279,8 @@ void vMagSensorTask(void *pvParameters) {
 //            xTaskNotify(vMonitoringTask, GYRO_NOTIFICATION, eSetBits);
 //        }
 
-		  sprintf(message, "Magn X Y Z -> %6.2f %6.2f %6.2f\r", mag_data.x, mag_data.y, mag_data.z);
+		  sprintf(message, "%02d:%02d:%02d Magn X Y Z -> %6.2f %6.2f %6.2f\r",
+				  sTime.Hours, sTime.Minutes, sTime.Seconds, mag_data.x, mag_data.y, mag_data.z);
 		  send_uart_message(message);
 
 
@@ -293,12 +304,15 @@ void vTempSensorTask(void *pvParameters) {
     float temp_fifo_buffer[temp_fifo.size];
     temp_fifo.data = temp_fifo_buffer;
 
-    char message[20];
+    char message[50];
     for (;;) {
 
     	if (xSemaphoreTake(xI2CMutex, portMAX_DELAY) == pdTRUE) {
 
         float temp_data = BSP_TSENSOR_ReadTemp();
+
+        HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BCD);
+        HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BCD);
 
         //Check if data is abnormal
 //        if (temp_data > 27) {
@@ -309,7 +323,9 @@ void vTempSensorTask(void *pvParameters) {
 //            // Notify the monitoring task with the unique bitmask
 //            xTaskNotify(vMonitoringTask, TEMP_NOTIFICATION_LOW, eSetBits);
 //        }
-		  sprintf(message, "Temp -> %6.2f\r", temp_data);
+
+
+		  sprintf(message, "%02d:%02d:%02d Temp -> %6.2f\r", sTime.Hours, sTime.Minutes, sTime.Seconds, temp_data);
 		  send_uart_message(message);
 
 
@@ -331,12 +347,16 @@ void vHumidSensorTask(void *pvParameters) {
     float humid_fifo_buffer[humid_fifo.size];
     humid_fifo.data = humid_fifo_buffer;
 
-    char message[20];
+    char message[50];
     for (;;) {
 
     	if (xSemaphoreTake(xI2CMutex, portMAX_DELAY) == pdTRUE) {
 
         float humid_data = BSP_HSENSOR_ReadHumidity();
+
+        HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BCD);
+        HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BCD);
+
 
         //TODO: check threshold. Check if data is abnormal
 //        if (humid_data > 70) {
@@ -348,7 +368,8 @@ void vHumidSensorTask(void *pvParameters) {
 //            xTaskNotify(vMonitoringTask, HUMID_NOTIFICATION_LOW, eSetBits);
 //        }
 
-        sprintf(message, "Humid -> %6.2f\r", humid_data);
+        sprintf(message, "%02d:%02d:%02d Humid -> %6.2f\r",
+        		sTime.Hours, sTime.Minutes, sTime.Seconds, humid_data);
         send_uart_message(message);
 
 
@@ -370,12 +391,15 @@ void vPressSensorTask(void *pvParameters) {
     float press_fifo_buffer[press_fifo.size];
     press_fifo.data = press_fifo_buffer;
 
-    char message[20];
+    char message[50];
     for (;;) {
 
     	if (xSemaphoreTake(xI2CMutex, portMAX_DELAY) == pdTRUE) {
 
         float press_data = BSP_PSENSOR_ReadPressure();
+
+        HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BCD);
+        HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BCD);
 
         //TODO: check threshold. Check if data is abnormal
 //        if (press_data > 1020) {
@@ -387,7 +411,8 @@ void vPressSensorTask(void *pvParameters) {
 //            xTaskNotify(vMonitoringTask, PRESS_NOTIFICATION_LOW, eSetBits);
 //        }
 
-        sprintf(message, "Press -> %6.2f\r", press_data);
+        sprintf(message, "%02d:%02d:%02d Press -> %6.2f\r",
+        		sTime.Hours, sTime.Minutes, sTime.Seconds, press_data);
         send_uart_message(message);
 
 
