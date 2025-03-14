@@ -31,7 +31,7 @@ void FIFO_Init(FIFO* fifoPtr) {
 }
 
 int FIFO_Write(FIFO* fifoPtr, int value) {
-    if (FIFO_IsFull(fifoPtr)) {
+    if (fifoPtr->count == fifoPtr->size) {
         return FAILURE;  // FIFO is full
     }
     fifoPtr->data[fifoPtr->head] = value;
@@ -41,7 +41,7 @@ int FIFO_Write(FIFO* fifoPtr, int value) {
 }
 
 int FIFO_Read(FIFO* fifoPtr, int* value) {
-    if (FIFO_IsEmpty(fifoPtr)) {
+    if (fifoPtr->count == 0) {
         return FAILURE;  // FIFO is empty
     }
     *value = fifoPtr->data[fifoPtr->tail];
@@ -50,10 +50,29 @@ int FIFO_Read(FIFO* fifoPtr, int* value) {
     return SUCCESS;
 }
 
-int FIFO_IsFull(FIFO* fifoPtr) {
-    return fifoPtr->count == fifoPtr->size;
+void FIFO_Init_3Axis(FIFO3Axis* fifoPtr) {
+	fifoPtr->head = 0;
+	fifoPtr->tail = 0;
+	fifoPtr->count = 0;
 }
 
-int FIFO_IsEmpty(FIFO* fifoPtr) {
-    return fifoPtr->count == 0;
+int FIFO_Write_3Axis(FIFO3Axis* fifoPtr, Data3Axis value) {
+    if (fifoPtr->count == fifoPtr->size) {
+        return FAILURE;  // FIFO is full
+    }
+    fifoPtr->data[fifoPtr->head] = value;
+    fifoPtr->head = (fifoPtr->head + 1) % fifoPtr->size;
+    fifoPtr->count++;
+    return SUCCESS;
 }
+
+int FIFO_Read_3Axis(FIFO3Axis* fifoPtr, Data3Axis* value) {
+    if (fifoPtr->count == 0) {
+        return FAILURE;  // FIFO is empty
+    }
+    *value = fifoPtr->data[fifoPtr->tail];
+    fifoPtr->tail = (fifoPtr->tail + 1) % fifoPtr->size;
+    fifoPtr->count--;
+    return SUCCESS;
+}
+

@@ -21,9 +21,9 @@
 #include "sensor.h"
 
 // Function prototypes for internal helper functions
-static int select_fifo_random(SchedulingData *data);
-static int select_fifo_full(SchedulingData *data);
-static int select_fifo_predictive(SchedulingData *data);
+static int select_fifo_random();
+static int select_fifo_full();
+static int select_fifo_predictive();
 
 /* SchedulerTask select a fifo to read its data at one time;
  * selected_index:

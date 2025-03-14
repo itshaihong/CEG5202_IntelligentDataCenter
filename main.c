@@ -16,6 +16,7 @@
 #include "event_groups.h"
 #include "sensors.h"
 #include "cmsis_os.h"
+#include "string.h"
 
 UART_HandleTypeDef huart1;
 
@@ -29,6 +30,7 @@ QueueHandle_t uartQueue;
 
 static void USART1_UART_Init(void);
 static void SystemClock_Config(void);
+static void MX_RTC_Init(void);
 
 void Error_Handler(void)
 {
@@ -58,13 +60,13 @@ void send_uart_message(const char *message) {
     }
 }
 
-#define ACCEL_TASK_STACK_SIZE 256
-#define GYRO_TASK_STACK_SIZE 256
-#define MAG_TASK_STACK_SIZE 256
-#define TEMP_TASK_STACK_SIZE 256
-#define HUMID_TASK_STACK_SIZE 256
-#define PRESS_TASK_STACK_SIZE 256
-#define UART_TASK_STACK_SIZE 256
+#define ACCEL_TASK_STACK_SIZE 512
+#define GYRO_TASK_STACK_SIZE 512
+#define MAG_TASK_STACK_SIZE 512
+#define TEMP_TASK_STACK_SIZE 218
+#define HUMID_TASK_STACK_SIZE 218
+#define PRESS_TASK_STACK_SIZE 218
+#define UART_TASK_STACK_SIZE 218
 
 StaticTask_t xAccelTaskControlBlock;
 StaticTask_t xGyroTaskControlBlock;
@@ -82,16 +84,20 @@ StackType_t xHumidStack[HUMID_TASK_STACK_SIZE];
 StackType_t xPressStack[PRESS_TASK_STACK_SIZE];
 StackType_t xUARTStack[UART_TASK_STACK_SIZE];
 
+RTC_HandleTypeDef hrtc;
+RTC_TimeTypeDef sTime;
+RTC_DateTypeDef sDate;
 
 
 int main(void)
 {
 
   int status;
+
   HAL_Init();
   SystemClock_Config();
-
   USART1_UART_Init();
+  MX_RTC_Init();
 
   osKernelInitialize();
 
@@ -99,9 +105,22 @@ int main(void)
 //   Create the UART queue
   uartQueue = xQueueCreate(QUEUE_SIZE, MAX_MESSAGE_LENGTH);
 
-  uint8_t tx_buffer[] = "Initializing sensors\r\n";
-  HAL_UART_Transmit(&huart1, tx_buffer, sizeof(tx_buffer), 1000);
+  char tx_buffer[50];
+  sprintf(tx_buffer, "Initializing sensors\r\n");
+  HAL_UART_Transmit(&huart1, (uint8_t*)tx_buffer, strlen(tx_buffer), 1000);
   status = sensors_init();
+
+//  HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+//  HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+//
+//  sprintf(tx_buffer, "Time: %02d:%02d:%02d\r\n", sTime.Hours, sTime.Minutes, sTime.Seconds);
+//  HAL_UART_Transmit(&huart1, (uint8_t*)tx_buffer, strlen(tx_buffer), 1000);
+//
+//  sprintf(tx_buffer, "Date: %02d/%02d/%02d\r\n", sDate.Date, sDate.Month, sDate.Year);
+//  HAL_UART_Transmit(&huart1, (uint8_t*)tx_buffer, strlen(tx_buffer), 1000);
+
+//#define configUSE_TIME_SLICING 1
+
 
 /********************************************
  * example task creation
@@ -116,11 +135,11 @@ int main(void)
       &xAccelTaskControlBlock // TCB buffer
   );
   *********************************************/
-
+  initI2CMutex();
   xTaskCreateStatic(vAccelSensorTask, "Accel Task", ACCEL_TASK_STACK_SIZE, NULL, 2, xAccelStack, &xAccelTaskControlBlock);
   xTaskCreateStatic(vGyroSensorTask, "Gyro Task", GYRO_TASK_STACK_SIZE, NULL, 2, xGyroStack, &xGyroTaskControlBlock);
   xTaskCreateStatic( vMagSensorTask,  "Mag Task",  MAG_TASK_STACK_SIZE,  NULL,  2, xMagStack, &xMagTaskControlBlock);
-  xTaskCreateStatic(vTempSensorTask, "Temp Task",  NULL, 2,  xTempStack,  &xTempTaskControlBlock);
+  xTaskCreateStatic(vTempSensorTask, "Temp Task",  TEMP_TASK_STACK_SIZE, NULL, 2,  xTempStack,  &xTempTaskControlBlock);
   xTaskCreateStatic(vHumidSensorTask, "Humid Task", HUMID_TASK_STACK_SIZE, NULL, 2, xHumidStack, &xHumidTaskControlBlock);
   xTaskCreateStatic(vPressSensorTask, "Press Task", PRESS_TASK_STACK_SIZE, NULL, 2, xPressStack, &xPressTaskControlBlock);
   xTaskCreateStatic(UART_Task, "UART_Task", UART_TASK_STACK_SIZE, NULL, 1, xUARTStack, &xUARTTaskControlBlock);
@@ -212,3 +231,49 @@ void SystemClock_Config(void)
   HAL_RCCEx_EnableMSIPLLMode();
 }
 
+
+static void MX_RTC_Init(void)
+{
+
+  RTC_TimeTypeDef sTime = {0};
+  RTC_DateTypeDef sDate = {0};
+
+  /** Initialize RTC Only
+  */
+  hrtc.Instance = RTC;
+  hrtc.Init.HourFormat = RTC_HOURFORMAT_24;
+  hrtc.Init.AsynchPrediv = 127;
+  hrtc.Init.SynchPrediv = 255;
+  hrtc.Init.OutPut = RTC_OUTPUT_DISABLE;
+  hrtc.Init.OutPutRemap = RTC_OUTPUT_REMAP_NONE;
+  hrtc.Init.OutPutPolarity = RTC_OUTPUT_POLARITY_HIGH;
+  hrtc.Init.OutPutType = RTC_OUTPUT_TYPE_OPENDRAIN;
+  if (HAL_RTC_Init(&hrtc) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+
+  /** Initialize RTC and set the Time and Date
+  */
+  sTime.Hours = 0x0;
+  sTime.Minutes = 0x0;
+  sTime.Seconds = 0x0;
+  sTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
+  sTime.StoreOperation = RTC_STOREOPERATION_RESET;
+  if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BCD) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sDate.WeekDay = RTC_WEEKDAY_MONDAY;
+  sDate.Month = RTC_MONTH_JANUARY;
+  sDate.Date = 0x1;
+  sDate.Year = 0x0;
+
+  if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BCD) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+
+}

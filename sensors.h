@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include "FreeRTOS.h"
 #include "task.h"
+#include "semphr.h"
 #include "fifo.h"
 #include "main.h"
 
@@ -68,9 +69,9 @@ extern sensor_data temp;
 extern sensor_data humid;
 extern sensor_data press;
 
-extern FIFO accel_fifo;
-extern FIFO gyro_fifo;
-extern FIFO mag_fifo;
+extern FIFO3Axis accel_fifo;
+extern FIFO3Axis gyro_fifo;
+extern FIFO3Axis mag_fifo;
 extern FIFO temp_fifo;
 extern FIFO humid_fifo;
 extern FIFO press_fifo;
@@ -78,6 +79,7 @@ extern FIFO press_fifo;
 
 
 int sensors_init();
+void initI2CMutex();
 
 void vAccelSensorTask(void *pvParameters);
 void vGyroSensorTask(void *pvParameters);

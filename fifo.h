@@ -34,11 +34,27 @@ typedef struct {
     int size;
 } FIFO;
 
+typedef struct {
+    float x;
+    float y;
+    float z;
+} Data3Axis;
+
+typedef struct {
+	Data3Axis *data;
+    int head;
+    int tail;
+    int count;
+    int size;
+} FIFO3Axis;
+
 // Function prototypes
 void FIFO_Init(FIFO* fifoPtr);
 int FIFO_Write(FIFO* fifoPtr, int value);
 int FIFO_Read(FIFO* fifoPtr, int* value);
-int FIFO_IsFull(FIFO* fifoPtr);
-int FIFO_IsEmpty(FIFO* fifoPtr);
+
+void FIFO_Init_3Axis(FIFO3Axis* fifoPtr);
+int FIFO_Write_3Axis(FIFO3Axis* fifoPtr, Data3Axis value);
+int FIFO_Read_3Axis(FIFO3Axis* fifoPtr, Data3Axis* value);
 
 #endif
