@@ -15,6 +15,7 @@
 #include "semphr.h"
 #include "event_groups.h"
 #include "sensors.h"
+#include "scheduler.h"
 #include "cmsis_os.h"
 #include "string.h"
 
@@ -67,6 +68,7 @@ void send_uart_message(const char *message) {
 #define HUMID_TASK_STACK_SIZE 256
 #define PRESS_TASK_STACK_SIZE 256
 #define UART_TASK_STACK_SIZE 256
+#define SCHDLR_TASK_STACK_SIZE 256
 
 StaticTask_t xAccelTaskControlBlock;
 StaticTask_t xGyroTaskControlBlock;
@@ -75,6 +77,7 @@ StaticTask_t xTempTaskControlBlock;
 StaticTask_t xHumidTaskControlBlock;
 StaticTask_t xPressTaskControlBlock;
 StaticTask_t xUARTTaskControlBlock;
+StaticTask_t xSchdlrTaskControlBlock;
 
 StackType_t xAccelStack[ACCEL_TASK_STACK_SIZE];
 StackType_t xGyroStack[GYRO_TASK_STACK_SIZE];
@@ -83,6 +86,7 @@ StackType_t xTempStack[TEMP_TASK_STACK_SIZE];
 StackType_t xHumidStack[HUMID_TASK_STACK_SIZE];
 StackType_t xPressStack[PRESS_TASK_STACK_SIZE];
 StackType_t xUARTStack[UART_TASK_STACK_SIZE];
+StackType_t xSchdlrStack[SCHDLR_TASK_STACK_SIZE];
 
 /*
  * Notes on RTC:
@@ -104,6 +108,7 @@ int main(void)
   int status;
 
   HAL_Init();
+  SystemInit();
   SystemClock_Config();
   USART1_UART_Init();
   MX_RTC_Init();
@@ -139,11 +144,12 @@ int main(void)
   initI2CMutex();
   xTaskCreateStatic(vAccelSensorTask, "Accel Task", ACCEL_TASK_STACK_SIZE, NULL, 2, xAccelStack, &xAccelTaskControlBlock);
   xTaskCreateStatic(vGyroSensorTask, "Gyro Task", GYRO_TASK_STACK_SIZE, NULL, 2, xGyroStack, &xGyroTaskControlBlock);
-  xTaskCreateStatic( vMagSensorTask,  "Mag Task",  MAG_TASK_STACK_SIZE,  NULL,  2, xMagStack, &xMagTaskControlBlock);
+  xTaskCreateStatic(vMagSensorTask,  "Mag Task",  MAG_TASK_STACK_SIZE,  NULL,  2, xMagStack, &xMagTaskControlBlock);
   xTaskCreateStatic(vTempSensorTask, "Temp Task",  TEMP_TASK_STACK_SIZE, NULL, 2,  xTempStack,  &xTempTaskControlBlock);
   xTaskCreateStatic(vHumidSensorTask, "Humid Task", HUMID_TASK_STACK_SIZE, NULL, 2, xHumidStack, &xHumidTaskControlBlock);
   xTaskCreateStatic(vPressSensorTask, "Press Task", PRESS_TASK_STACK_SIZE, NULL, 2, xPressStack, &xPressTaskControlBlock);
   xTaskCreateStatic(UART_Task, "UART_Task", UART_TASK_STACK_SIZE, NULL, 1, xUARTStack, &xUARTTaskControlBlock);
+  xTaskCreateStatic(vSchedulerTask, "Scheduler Task", SCHDLR_TASK_STACK_SIZE, NULL, 2, xSchdlrStack, &xSchdlrTaskControlBlock);
 
   vTaskStartScheduler();
 
@@ -207,7 +213,7 @@ static void MX_RTC_Init(void)
   sTime.Seconds = 0x0;
   sTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
   sTime.StoreOperation = RTC_STOREOPERATION_RESET;
-  if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BCD) != HAL_OK)
+  if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN) != HAL_OK)
   {
     Error_Handler();
   }
@@ -216,7 +222,7 @@ static void MX_RTC_Init(void)
   sDate.Date = 0x1;
   sDate.Year = 0x0;
 
-  if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BCD) != HAL_OK)
+  if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN) != HAL_OK)
   {
     Error_Handler();
   }
@@ -230,19 +236,12 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-
-  /** Configure the main internal regulator output voltage
-  */
-  if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1) != HAL_OK)
-  {
-    Error_Handler();
-  }
+  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
   /** Configure LSE Drive Capability
   */
   HAL_PWR_EnableBkUpAccess();
   __HAL_RCC_LSEDRIVE_CONFIG(RCC_LSEDRIVE_LOW);
-
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
@@ -264,7 +263,6 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-
   /** Initializes the CPU, AHB and APB buses clocks
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
@@ -278,7 +276,32 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_RTC|RCC_PERIPHCLK_USART1
+                              |RCC_PERIPHCLK_USART3|RCC_PERIPHCLK_I2C2
+                              |RCC_PERIPHCLK_DFSDM1|RCC_PERIPHCLK_USB;
+  PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
+  PeriphClkInit.Usart3ClockSelection = RCC_USART3CLKSOURCE_PCLK1;
+  PeriphClkInit.I2c2ClockSelection = RCC_I2C2CLKSOURCE_PCLK1;
+  PeriphClkInit.Dfsdm1ClockSelection = RCC_DFSDM1CLKSOURCE_PCLK;
+  PeriphClkInit.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;
+  PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_PLLSAI1;
+  PeriphClkInit.PLLSAI1.PLLSAI1Source = RCC_PLLSOURCE_MSI;
+  PeriphClkInit.PLLSAI1.PLLSAI1M = 1;
+  PeriphClkInit.PLLSAI1.PLLSAI1N = 24;
+  PeriphClkInit.PLLSAI1.PLLSAI1P = RCC_PLLP_DIV7;
+  PeriphClkInit.PLLSAI1.PLLSAI1Q = RCC_PLLQ_DIV2;
+  PeriphClkInit.PLLSAI1.PLLSAI1R = RCC_PLLR_DIV2;
+  PeriphClkInit.PLLSAI1.PLLSAI1ClockOut = RCC_PLLSAI1_48M2CLK;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure the main internal regulator output voltage
+  */
+  if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1) != HAL_OK)
+  {
+    Error_Handler();
+  }
   /** Enable MSI Auto calibration
   */
   HAL_RCCEx_EnableMSIPLLMode();

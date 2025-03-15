@@ -18,7 +18,7 @@
 
 
 #include "scheduler.h"
-#include "sensor.h"
+#include "sensors.h"
 
 // Function prototypes for internal helper functions
 static int select_fifo_random();
@@ -38,22 +38,42 @@ void vSchedulerTask(void *pvParameters) {
 	TickType_t xLastWakeTime = xTaskGetTickCount();
 	TickType_t SchedulerInterval = 1000;
 
-    int scheme = 0; // Default scheme, should be set externally or passed in
+    int scheme = 2; // Default scheme, should be set externally or passed in
     int selected_fifo = -1;
 
     char message[50];
-    int *data;
+    Data data;
+    Data3Axis data3Axis;
+
+    switch (scheme) {
+        case 0:
+        	sprintf(message, "Random Selection Scheme!\r\n\n");
+        	send_uart_message(message);
+            break;
+        case 1:
+        	sprintf(message, "Full Selection Scheme!\r\n\n");
+        	send_uart_message(message);
+            break;
+        case 2:
+        	sprintf(message, "Predictive Selection Scheme!\r\n\n");
+        	send_uart_message(message);
+            break;
+        default:
+            // Handle invalid scheme values, could select a default or log an error
+            selected_fifo = -1;
+            break;
+    }
 
     for(;;) {
         // Decide which scheme to use based on the scheme variable
         switch (scheme) {
-            case 1:
+            case 0:
                 selected_fifo = select_fifo_random();
                 break;
-            case 2:
+            case 1:
                 selected_fifo = select_fifo_full();
                 break;
-            case 3:
+            case 2:
                 selected_fifo = select_fifo_predictive();
                 break;
             default:
@@ -65,57 +85,78 @@ void vSchedulerTask(void *pvParameters) {
         // Perform actions with the selected FIFO
         switch(selected_fifo){
 			case 0:
-				if(FIFO_IsEmpty(&accel_fifo)){
+				if(accel_fifo.count == 0){
 					sprintf(message, "Accel FIFO empty!\r");
 					send_uart_message(message);
 				}
 				else{
-					FIFO_Read(&accel_fifo, data);
+					FIFO_Read_3Axis(&accel_fifo, &data3Axis);
+					sprintf(message, "%02d:%02d:%02d Accel X Y Z -> %6.2f %6.2f %6.2f\r",
+							data3Axis.Hours, data3Axis.Minutes, data3Axis.Seconds,
+							data3Axis.x, data3Axis.y, data3Axis.z);
+					send_uart_message(message);
 				}
 				break;
 
 			case 1:
-				if(FIFO_IsEmpty(&gyro_fifo)){
+				if(gyro_fifo.count == 0){
 					sprintf(message, "Gyro FIFO empty!\r");
 					send_uart_message(message);
 				}else{
-					FIFO_Read(&gyro_fifo, data);
+					FIFO_Read_3Axis(&gyro_fifo, &data3Axis);
+					sprintf(message, "%02d:%02d:%02d Gyro X Y Z -> %6.2f %6.2f %6.2f\r",
+							data3Axis.Hours, data3Axis.Minutes, data3Axis.Seconds,
+							data3Axis.x, data3Axis.y, data3Axis.z);
+					send_uart_message(message);
 				}
 				break;
 
 			case 2:
-				if(FIFO_IsEmpty(&mag_fifo)){
+				if(mag_fifo.count == 0){
 					sprintf(message, "Mag FIFO empty!\r");
 					send_uart_message(message);
 				}else{
-					FIFO_Read(&mag_fifo, data);
+					FIFO_Read_3Axis(&mag_fifo, &data3Axis);
+					sprintf(message, "%02d:%02d:%02d Mag X Y Z -> %6.2f %6.2f %6.2f\r",
+							data3Axis.Hours, data3Axis.Minutes, data3Axis.Seconds,
+							data3Axis.x, data3Axis.y, data3Axis.z);
+					send_uart_message(message);
 				}
 				break;
 
 			case 3:
-				if(FIFO_IsEmpty(&temp_fifo)){
+				if(temp_fifo.count == 0){
 					sprintf(message, "Temp FIFO empty!\r");
 					send_uart_message(message);
 				}else{
-					FIFO_Read(&temp_fifo, data);
+					FIFO_Read(&temp_fifo, &data);
+					sprintf(message, "%02d:%02d:%02d Temp -> %6.2f\r",
+							data.Hours, data.Minutes, data.Seconds, data.value);
+					send_uart_message(message);
 				}
 				break;
 
 			case 4:
-				if(FIFO_IsEmpty(&humid_fifo)){
+				if(humid_fifo.count == 0){
 					sprintf(message, "Humid FIFO empty!\r");
 					send_uart_message(message);
 				}else{
-					FIFO_Read(&humid_fifo, data);
+					FIFO_Read(&humid_fifo, &data);
+					sprintf(message, "%02d:%02d:%02d Humid -> %6.2f\r",
+							data.Hours, data.Minutes, data.Seconds, data.value);
+					send_uart_message(message);
 				}
 				break;
 
 			case 5:
-				if(FIFO_IsEmpty(&press_fifo)){
+				if(press_fifo.count == 0){
 					sprintf(message, "Press FIFO empty!\r");
 					send_uart_message(message);
 				}else{
-					FIFO_Read(&press_fifo, data);
+					FIFO_Read(&press_fifo, &data);
+					sprintf(message, "%02d:%02d:%02d Press -> %6.2f\r",
+							data.Hours, data.Minutes, data.Seconds, data.value);
+					send_uart_message(message);
 				}
 				break;
 
@@ -176,7 +217,7 @@ static int select_fifo_predictive() {
     time_to_full[0] = (accel_fifo.size - accel_fifo.count) * accel.interval;
     time_to_full[1] = (gyro_fifo.size - gyro_fifo.count) * gyro.interval;
     time_to_full[2] = (mag_fifo.size - mag_fifo.count) * mag.interval;
-    time_to_full[3] = (temp_fifo.size - temp_fifo.count) * temp_interval;
+    time_to_full[3] = (temp_fifo.size - temp_fifo.count) * temp.interval;
     time_to_full[4] = (humid_fifo.size - humid_fifo.count) * humid.interval;
     time_to_full[5] = (press_fifo.size - press_fifo.count) * press.interval;
 

@@ -30,7 +30,7 @@ void FIFO_Init(FIFO* fifoPtr) {
 	fifoPtr->count = 0;
 }
 
-int FIFO_Write(FIFO* fifoPtr, int value) {
+int FIFO_Write(FIFO* fifoPtr, Data value) {
     if (fifoPtr->count == fifoPtr->size) {
         return FAILURE;  // FIFO is full
     }
@@ -40,7 +40,7 @@ int FIFO_Write(FIFO* fifoPtr, int value) {
     return SUCCESS;
 }
 
-int FIFO_Read(FIFO* fifoPtr, int* value) {
+int FIFO_Read(FIFO* fifoPtr, Data* value) {
     if (fifoPtr->count == 0) {
         return FAILURE;  // FIFO is empty
     }

@@ -26,19 +26,32 @@
 #ifndef FIFO_H
 #define FIFO_H
 
+#include "main.h"
+
+
 typedef struct {
-    float *data;
+	uint8_t Hours;
+	uint8_t Minutes;
+	uint8_t Seconds;
+    float value;
+} Data;
+
+typedef struct {
+	uint8_t Hours;
+	uint8_t Minutes;
+	uint8_t Seconds;
+    float x;
+    float y;
+    float z;
+} Data3Axis;
+
+typedef struct {
+	Data *data;
     int head;
     int tail;
     int count;
     int size;
 } FIFO;
-
-typedef struct {
-    float x;
-    float y;
-    float z;
-} Data3Axis;
 
 typedef struct {
 	Data3Axis *data;
@@ -50,8 +63,8 @@ typedef struct {
 
 // Function prototypes
 void FIFO_Init(FIFO* fifoPtr);
-int FIFO_Write(FIFO* fifoPtr, int value);
-int FIFO_Read(FIFO* fifoPtr, int* value);
+int FIFO_Write(FIFO* fifoPtr, Data value);
+int FIFO_Read(FIFO* fifoPtr, Data* value);
 
 void FIFO_Init_3Axis(FIFO3Axis* fifoPtr);
 int FIFO_Write_3Axis(FIFO3Axis* fifoPtr, Data3Axis value);
