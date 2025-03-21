@@ -23,6 +23,22 @@ UART_HandleTypeDef huart1;
 
 QueueHandle_t uartQueue;
 
+/*
+ * Notes on RTC:
+ * you must call HAL_RTC_GetDate() after HAL_RTC_GetTime() to unlock the values
+ * * in the higher-order calendar shadow registers to ensure consistency between
+ *  the time and date values.
+ *  * Reading RTC current time locks the values in calendar shadow registers
+ *  until current date is read.
+ * https://stackoverflow.com/questions/47040039/stm32l4-rtc-hal-not-working
+ */
+
+RTC_HandleTypeDef hrtc;
+RTC_TimeTypeDef sTime;
+RTC_DateTypeDef sDate;
+
+uint16_t milliseconds = 0;
+
 // Define the maximum message length
 #define MAX_MESSAGE_LENGTH 50
 
@@ -32,6 +48,15 @@ QueueHandle_t uartQueue;
 static void USART1_UART_Init(void);
 static void SystemClock_Config(void);
 static void MX_RTC_Init(void);
+
+void vApplicationTickHook(void) {
+    if (++milliseconds >= 1000) {
+    	milliseconds = 0;  // Reset every 1000 ms
+    }
+}
+
+
+void SysTick_Init(void);
 
 void Error_Handler(void)
 {
@@ -43,12 +68,32 @@ void Error_Handler(void)
 // UART Task that will handle all UART transmissions
 void UART_Task(void *pvParameters) {
     char queueBuffer[MAX_MESSAGE_LENGTH];
+    int stampHours, stampMinutes, stampSeconds;
+    uint16_t stampmilliSeconds;
+    uint16_t ms;
+
+    int response_delay;
+    char message[70];
 
     while (1) {
         // Wait for a message from the queue
         if (xQueueReceive(uartQueue, &queueBuffer, portMAX_DELAY) == pdPASS) {
             // Send the message via UART
-            HAL_UART_Transmit(&huart1, (uint8_t*)queueBuffer, strlen(queueBuffer), 1000);
+            HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+            HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+            ms = milliseconds;
+
+            int result = sscanf(queueBuffer, "%02d:%02d:%02d:%03ld ", &stampHours, &stampMinutes, &stampSeconds, &stampmilliSeconds);
+
+            response_delay = (sTime.Hours - stampHours) * 3600000 + (sTime.Minutes - stampMinutes) * 60000 +
+            		(sTime.Seconds - stampSeconds) * 1000 + (ms - stampmilliSeconds);
+
+        	sprintf(message, "%02d:%02d:%02d:%03ld %s", sTime.Hours, sTime.Minutes, sTime.Seconds, ms, queueBuffer);
+        	HAL_UART_Transmit(&huart1, (uint8_t*)message, strlen(message), 1000);
+
+            sprintf(message, "delay (ms): %d\r\n\r\n", response_delay);
+            HAL_UART_Transmit(&huart1, (uint8_t*)message, strlen(message), 1000);
+
         }
     }
 }
@@ -67,8 +112,8 @@ void send_uart_message(const char *message) {
 #define TEMP_TASK_STACK_SIZE 256
 #define HUMID_TASK_STACK_SIZE 256
 #define PRESS_TASK_STACK_SIZE 256
-#define UART_TASK_STACK_SIZE 256
-#define SCHDLR_TASK_STACK_SIZE 256
+#define UART_TASK_STACK_SIZE 1024
+#define SCHDLR_TASK_STACK_SIZE 512
 
 StaticTask_t xAccelTaskControlBlock;
 StaticTask_t xGyroTaskControlBlock;
@@ -88,18 +133,8 @@ StackType_t xPressStack[PRESS_TASK_STACK_SIZE];
 StackType_t xUARTStack[UART_TASK_STACK_SIZE];
 StackType_t xSchdlrStack[SCHDLR_TASK_STACK_SIZE];
 
-/*
- * Notes on RTC:
- * you must call HAL_RTC_GetDate() after HAL_RTC_GetTime() to unlock the values
- * * in the higher-order calendar shadow registers to ensure consistency between
- *  the time and date values.
- *  * Reading RTC current time locks the values in calendar shadow registers
- *  until current date is read.
- * https://stackoverflow.com/questions/47040039/stm32l4-rtc-hal-not-working
- */
-RTC_HandleTypeDef hrtc;
-RTC_TimeTypeDef sTime;
-RTC_DateTypeDef sDate;
+
+
 
 
 int main(void)
@@ -107,11 +142,14 @@ int main(void)
 
   int status;
 
+
+
   HAL_Init();
   SystemInit();
   SystemClock_Config();
   USART1_UART_Init();
   MX_RTC_Init();
+
 
   osKernelInitialize();
 
@@ -122,10 +160,9 @@ int main(void)
   char tx_buffer[50];
   sprintf(tx_buffer, "Initializing sensors\r\n");
   HAL_UART_Transmit(&huart1, (uint8_t*)tx_buffer, strlen(tx_buffer), 1000);
+
   status = sensors_init();
 
-
-//#define configUSE_TIME_SLICING 1
 
 
 /********************************************
@@ -150,6 +187,9 @@ int main(void)
   xTaskCreateStatic(vPressSensorTask, "Press Task", PRESS_TASK_STACK_SIZE, NULL, 2, xPressStack, &xPressTaskControlBlock);
   xTaskCreateStatic(UART_Task, "UART_Task", UART_TASK_STACK_SIZE, NULL, 1, xUARTStack, &xUARTTaskControlBlock);
   xTaskCreateStatic(vSchedulerTask, "Scheduler Task", SCHDLR_TASK_STACK_SIZE, NULL, 2, xSchdlrStack, &xSchdlrTaskControlBlock);
+
+
+
 
   vTaskStartScheduler();
 
@@ -232,6 +272,7 @@ static void MX_RTC_Init(void)
 
 
 
+
 void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
@@ -255,7 +296,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_MSI;
   RCC_OscInitStruct.PLL.PLLM = 1;
-  RCC_OscInitStruct.PLL.PLLN = 40;
+  RCC_OscInitStruct.PLL.PLLN = 16;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV7;
   RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
   RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
@@ -269,7 +310,7 @@ void SystemClock_Config(void)
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV16;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
@@ -305,4 +346,12 @@ void SystemClock_Config(void)
   /** Enable MSI Auto calibration
   */
   HAL_RCCEx_EnableMSIPLLMode();
+}
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  if (htim->Instance == TIM1) {
+    HAL_IncTick();
+  }
+
 }

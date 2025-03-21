@@ -58,16 +58,17 @@ typedef void (*callback)(void);
 
 typedef struct{
 	int interval;
-	callback interrupt_handler;
-}sensor_data;
+	float threshold_up;
+	float threshold_down;
+}sensor_ctrl_data;
 
 
-extern sensor_data accel;
-extern sensor_data gyro;
-extern sensor_data mag;
-extern sensor_data temp;
-extern sensor_data humid;
-extern sensor_data press;
+extern sensor_ctrl_data accel;
+extern sensor_ctrl_data gyro;
+extern sensor_ctrl_data mag;
+extern sensor_ctrl_data temp;
+extern sensor_ctrl_data humid;
+extern sensor_ctrl_data press;
 
 extern FIFO3Axis accel_fifo;
 extern FIFO3Axis gyro_fifo;
@@ -87,6 +88,15 @@ void vMagSensorTask(void *pvParameters);
 void vTempSensorTask(void *pvParameters);
 void vHumidSensorTask(void *pvParameters);
 void vPressSensorTask(void *pvParameters);
+void vCriticalEventTask(void *pvParameters);
+
+void LED_Init(void);
+void LEDG_On(void);
+void LEDG_Off(void);
+void LEDG_Toggle(void);
+void LEDO_On(void);
+void LEDO_Off(void);
+void LEDO_Toggle(void);
 
 
 #endif

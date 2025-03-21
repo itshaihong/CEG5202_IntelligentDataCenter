@@ -33,6 +33,7 @@ typedef struct {
 	uint8_t Hours;
 	uint8_t Minutes;
 	uint8_t Seconds;
+	uint32_t milliSeconds;
     float value;
 } Data;
 
@@ -40,6 +41,7 @@ typedef struct {
 	uint8_t Hours;
 	uint8_t Minutes;
 	uint8_t Seconds;
+	uint32_t milliSeconds;
     float x;
     float y;
     float z;

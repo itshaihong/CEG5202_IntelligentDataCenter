@@ -1,21 +1,3 @@
-/*
- * Function scheduler_task():
- *     While true:
- *         Select FIFO based on strategy (random, full, predictive)
- *         Read data from selected FIFO
- *         Process data and adjust control actions
- *         Handle interrupts for critical events
- *
- * Function select_fifo_random():
- *     Return a random FIFO
- *
- * Function select_fifo_full():
- *     Return FIFO with highest occupancy
-
- * Function select_fifo_predictive():
- *     Return FIFO most at risk of overflow
- */
-
 
 #include "scheduler.h"
 #include "sensors.h"
@@ -35,10 +17,10 @@ static int select_fifo_predictive();
  * 	5 -> press_fifo
  * */
 void vSchedulerTask(void *pvParameters) {
-	TickType_t xLastWakeTime = xTaskGetTickCount();
+
 	TickType_t SchedulerInterval = 1000;
 
-    int scheme = 2; // Default scheme, should be set externally or passed in
+    int scheme = 0; // Default scheme, should be set externally or passed in
     int selected_fifo = -1;
 
     char message[50];
@@ -47,24 +29,24 @@ void vSchedulerTask(void *pvParameters) {
 
     switch (scheme) {
         case 0:
-        	sprintf(message, "Random Selection Scheme!\r\n\n");
+        	sprintf(message, "Random Selection Scheme!\r\n\r\n");
         	send_uart_message(message);
             break;
         case 1:
-        	sprintf(message, "Full Selection Scheme!\r\n\n");
+        	sprintf(message, "Full Selection Scheme!\r\n\r\n");
         	send_uart_message(message);
             break;
         case 2:
-        	sprintf(message, "Predictive Selection Scheme!\r\n\n");
+        	sprintf(message, "Predictive Selection Scheme!\r\n\r\n");
         	send_uart_message(message);
             break;
         default:
-            // Handle invalid scheme values, could select a default or log an error
-            selected_fifo = -1;
+        	Error_Handler();
             break;
     }
 
     for(;;) {
+    	TickType_t xLastWakeTime = xTaskGetTickCount();
         // Decide which scheme to use based on the scheme variable
         switch (scheme) {
             case 0:
@@ -77,8 +59,7 @@ void vSchedulerTask(void *pvParameters) {
                 selected_fifo = select_fifo_predictive();
                 break;
             default:
-                // Handle invalid scheme values, could select a default or log an error
-                selected_fifo = -1;
+                Error_Handler();
                 break;
         }
 
@@ -91,9 +72,9 @@ void vSchedulerTask(void *pvParameters) {
 				}
 				else{
 					FIFO_Read_3Axis(&accel_fifo, &data3Axis);
-					sprintf(message, "%02d:%02d:%02d Accel X Y Z -> %6.2f %6.2f %6.2f\r",
-							data3Axis.Hours, data3Axis.Minutes, data3Axis.Seconds,
-							data3Axis.x, data3Axis.y, data3Axis.z);
+					sprintf(message, "%02d:%02d:%02d:%03ld Accl XYZ: %6.2f %6.2f %6.2f %02d/%02d\r",
+							data3Axis.Hours, data3Axis.Minutes, data3Axis.Seconds, data3Axis.milliSeconds,
+							data3Axis.x, data3Axis.y, data3Axis.z, accel_fifo.count, accel_fifo.size);
 					send_uart_message(message);
 				}
 				break;
@@ -104,9 +85,9 @@ void vSchedulerTask(void *pvParameters) {
 					send_uart_message(message);
 				}else{
 					FIFO_Read_3Axis(&gyro_fifo, &data3Axis);
-					sprintf(message, "%02d:%02d:%02d Gyro X Y Z -> %6.2f %6.2f %6.2f\r",
-							data3Axis.Hours, data3Axis.Minutes, data3Axis.Seconds,
-							data3Axis.x, data3Axis.y, data3Axis.z);
+					sprintf(message, "%02d:%02d:%02d:%03ld Gyro XYZ: %6.2f %6.2f %6.2f %02d/%02d\r",
+							data3Axis.Hours, data3Axis.Minutes, data3Axis.Seconds, data3Axis.milliSeconds,
+							data3Axis.x, data3Axis.y, data3Axis.z, gyro_fifo.count, gyro_fifo.size);
 					send_uart_message(message);
 				}
 				break;
@@ -117,9 +98,9 @@ void vSchedulerTask(void *pvParameters) {
 					send_uart_message(message);
 				}else{
 					FIFO_Read_3Axis(&mag_fifo, &data3Axis);
-					sprintf(message, "%02d:%02d:%02d Mag X Y Z -> %6.2f %6.2f %6.2f\r",
-							data3Axis.Hours, data3Axis.Minutes, data3Axis.Seconds,
-							data3Axis.x, data3Axis.y, data3Axis.z);
+					sprintf(message, "%02d:%02d:%02d:%03ld Mag XYZ: %6.2f %6.2f %6.2f %02d/%02d\r",
+							data3Axis.Hours, data3Axis.Minutes, data3Axis.Seconds, data3Axis.milliSeconds,
+							data3Axis.x, data3Axis.y, data3Axis.z, mag_fifo.count, mag_fifo.size);
 					send_uart_message(message);
 				}
 				break;
@@ -130,8 +111,8 @@ void vSchedulerTask(void *pvParameters) {
 					send_uart_message(message);
 				}else{
 					FIFO_Read(&temp_fifo, &data);
-					sprintf(message, "%02d:%02d:%02d Temp -> %6.2f\r",
-							data.Hours, data.Minutes, data.Seconds, data.value);
+					sprintf(message, "%02d:%02d:%02d:%03ld Temp: %6.2f %02d/%02d\r",
+							data.Hours, data.Minutes, data.Seconds, data.milliSeconds, data.value, temp_fifo.count, temp_fifo.size);
 					send_uart_message(message);
 				}
 				break;
@@ -142,8 +123,8 @@ void vSchedulerTask(void *pvParameters) {
 					send_uart_message(message);
 				}else{
 					FIFO_Read(&humid_fifo, &data);
-					sprintf(message, "%02d:%02d:%02d Humid -> %6.2f\r",
-							data.Hours, data.Minutes, data.Seconds, data.value);
+					sprintf(message, "%02d:%02d:%02d:%03ld Humid: %6.2f %02d/%02d\r",
+							data.Hours, data.Minutes, data.Seconds, data.milliSeconds, data.value, humid_fifo.count, humid_fifo.size);
 					send_uart_message(message);
 				}
 				break;
@@ -154,10 +135,13 @@ void vSchedulerTask(void *pvParameters) {
 					send_uart_message(message);
 				}else{
 					FIFO_Read(&press_fifo, &data);
-					sprintf(message, "%02d:%02d:%02d Press -> %6.2f\r",
-							data.Hours, data.Minutes, data.Seconds, data.value);
+					sprintf(message, "%02d:%02d:%02d:%03ld Press: %6.2f %02d/%02d\r",
+							data.Hours, data.Minutes, data.Seconds, data.milliSeconds, data.value, press_fifo.count, press_fifo.size);
 					send_uart_message(message);
 				}
+				break;
+			default:
+				Error_Handler();
 				break;
 
 
