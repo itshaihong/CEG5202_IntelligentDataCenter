@@ -32,6 +32,7 @@
 #include "../../Drivers/BSP/B-L475E-IOT01/stm32l475e_iot01_tsensor.h"
 #include "../../Drivers/BSP/B-L475E-IOT01/stm32l475e_iot01_hsensor.h"
 #include "../../Drivers/BSP/B-L475E-IOT01/stm32l475e_iot01_psensor.h"
+#include "../../Drivers/BSP/B-L475E-IOT01/stm32l475e_iot01.h"
 
 #include <stdio.h>
 #include "FreeRTOS.h"

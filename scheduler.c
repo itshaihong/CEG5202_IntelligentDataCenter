@@ -1,6 +1,7 @@
 
 #include "scheduler.h"
 #include "sensors.h"
+#include <stdlib.h>
 
 // Function prototypes for internal helper functions
 static int select_fifo_random();
@@ -17,10 +18,10 @@ static int select_fifo_predictive();
  * 	5 -> press_fifo
  * */
 void vSchedulerTask(void *pvParameters) {
-
+	TickType_t xLastWakeTime = xTaskGetTickCount();
 	TickType_t SchedulerInterval = 1000;
 
-    int scheme = 0; // Default scheme, should be set externally or passed in
+    int scheme = 0;
     int selected_fifo = -1;
 
     char message[50];
@@ -46,7 +47,7 @@ void vSchedulerTask(void *pvParameters) {
     }
 
     for(;;) {
-    	TickType_t xLastWakeTime = xTaskGetTickCount();
+
         // Decide which scheme to use based on the scheme variable
         switch (scheme) {
             case 0:
@@ -72,7 +73,7 @@ void vSchedulerTask(void *pvParameters) {
 				}
 				else{
 					FIFO_Read_3Axis(&accel_fifo, &data3Axis);
-					sprintf(message, "%02d:%02d:%02d:%03ld Accl XYZ: %6.2f %6.2f %6.2f %02d/%02d\r",
+					sprintf(message, "%02d:%02d:%02d:%03ld Acl XYZ: %6.2f %6.2f %6.2f %02d/%02d\r",
 							data3Axis.Hours, data3Axis.Minutes, data3Axis.Seconds, data3Axis.milliSeconds,
 							data3Axis.x, data3Axis.y, data3Axis.z, accel_fifo.count, accel_fifo.size);
 					send_uart_message(message);
@@ -85,7 +86,7 @@ void vSchedulerTask(void *pvParameters) {
 					send_uart_message(message);
 				}else{
 					FIFO_Read_3Axis(&gyro_fifo, &data3Axis);
-					sprintf(message, "%02d:%02d:%02d:%03ld Gyro XYZ: %6.2f %6.2f %6.2f %02d/%02d\r",
+					sprintf(message, "%02d:%02d:%02d:%03ld Gyr XYZ: %6.2f %6.2f %6.2f %02d/%02d\r",
 							data3Axis.Hours, data3Axis.Minutes, data3Axis.Seconds, data3Axis.milliSeconds,
 							data3Axis.x, data3Axis.y, data3Axis.z, gyro_fifo.count, gyro_fifo.size);
 					send_uart_message(message);

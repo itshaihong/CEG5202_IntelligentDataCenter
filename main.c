@@ -109,11 +109,12 @@ void send_uart_message(const char *message) {
 #define ACCEL_TASK_STACK_SIZE 512
 #define GYRO_TASK_STACK_SIZE 512
 #define MAG_TASK_STACK_SIZE 512
-#define TEMP_TASK_STACK_SIZE 256
-#define HUMID_TASK_STACK_SIZE 256
-#define PRESS_TASK_STACK_SIZE 256
-#define UART_TASK_STACK_SIZE 1024
-#define SCHDLR_TASK_STACK_SIZE 512
+#define TEMP_TASK_STACK_SIZE 400
+#define HUMID_TASK_STACK_SIZE 400
+#define PRESS_TASK_STACK_SIZE 400
+#define UART_TASK_STACK_SIZE 512
+#define SCHDLR_TASK_STACK_SIZE 800
+
 
 StaticTask_t xAccelTaskControlBlock;
 StaticTask_t xGyroTaskControlBlock;
@@ -162,6 +163,7 @@ int main(void)
   HAL_UART_Transmit(&huart1, (uint8_t*)tx_buffer, strlen(tx_buffer), 1000);
 
   status = sensors_init();
+  initI2CMutex();
 
 
 
@@ -178,7 +180,7 @@ int main(void)
       &xAccelTaskControlBlock // TCB buffer
   );
   *********************************************/
-  initI2CMutex();
+
   xTaskCreateStatic(vAccelSensorTask, "Accel Task", ACCEL_TASK_STACK_SIZE, NULL, 2, xAccelStack, &xAccelTaskControlBlock);
   xTaskCreateStatic(vGyroSensorTask, "Gyro Task", GYRO_TASK_STACK_SIZE, NULL, 2, xGyroStack, &xGyroTaskControlBlock);
   xTaskCreateStatic(vMagSensorTask,  "Mag Task",  MAG_TASK_STACK_SIZE,  NULL,  2, xMagStack, &xMagTaskControlBlock);

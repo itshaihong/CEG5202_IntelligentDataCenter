@@ -1,6 +1,6 @@
 #include "sensors.h"
-#include "event_groups.h"
 #include "math.h"
+#include <stdlib.h>
 
 
 
@@ -32,12 +32,14 @@ int sensors_init(){
 	LEDG_On();
 	LEDO_Off();
 
+	SENSOR_IO_Init();
+
 	status = BSP_ACCELERO_Init();
 	if(status != ACCELERO_OK){ return FAILURE;}
 	accel.interval = 1000;
 	accel.threshold_up = 11;
 	accel.threshold_down = -11;
-	accel_fifo.size = 64;
+	accel_fifo.size = 32;
 	FIFO_Init_3Axis(&accel_fifo);
 
 	status = BSP_GYRO_Init();
@@ -45,7 +47,7 @@ int sensors_init(){
 	gyro.interval = 1000;
 	gyro.threshold_up = 50;
 	gyro.threshold_down = -50;
-	gyro_fifo.size = 64;
+	gyro_fifo.size = 32;
 	FIFO_Init_3Axis(&gyro_fifo);
 
 	status = BSP_MAGNETO_Init();
@@ -53,31 +55,31 @@ int sensors_init(){
 	mag.interval = 1000;
 	mag.threshold_up = 5;
 	mag.threshold_down = -5;
-	mag_fifo.size = 64;
+	mag_fifo.size = 32;
 	FIFO_Init_3Axis(&mag_fifo);
 
 	status = BSP_TSENSOR_Init();
 	if(status != TSENSOR_OK){ return FAILURE;}
-	temp.interval = 2000;
-	temp.threshold_up = 30;
+	temp.interval = 5000;
+	temp.threshold_up = 36;
 	temp.threshold_down = 20;
-	temp_fifo.size = 64;
+	temp_fifo.size = 16;
 	FIFO_Init(&temp_fifo);
 
 	status = BSP_HSENSOR_Init();
 	if(status != HSENSOR_OK){ return FAILURE;}
-	humid.interval = 2000;
-	humid.threshold_up = 90;
+	humid.interval = 5000;
+	humid.threshold_up = 100;
 	humid.threshold_down = 30;
-	humid_fifo.size = 64;
+	humid_fifo.size = 16;
 	FIFO_Init(&humid_fifo);
 
 	status = BSP_PSENSOR_Init();
 	if(status != PSENSOR_OK){ return FAILURE;}
-	press.interval = 2000;
-	press.threshold_up = 1100;
-	press.threshold_down = 980;
-	press_fifo.size = 64;
+	press.interval = 5000;
+	press.threshold_up = 1000;
+	press.threshold_down = 950;
+	press_fifo.size = 16;
 	FIFO_Init(&press_fifo);
 
 	return SUCCESS;
@@ -110,7 +112,7 @@ void vAccelSensorTask(void *pvParameters) {
     char message[50];
     int response_delay;
     float error;
-    double magnitude;
+    double magnitude = 0;
     for (;;) {
 
     if (xSemaphoreTake(xI2CMutex, portMAX_DELAY) == pdTRUE) {
@@ -137,7 +139,6 @@ void vAccelSensorTask(void *pvParameters) {
 
 
         // Check if data is abnormal
-		magnitude = sqrt(accel_data.x * accel_data.x + accel_data.y * accel_data.y + accel_data.z * accel_data.z);
 
         if (magnitude > accel.threshold_up || magnitude < accel.threshold_down) {
 
@@ -435,8 +436,6 @@ void vTempSensorTask(void *pvParameters) {
         	HAL_UART_Transmit(&huart1, (uint8_t*)message, strlen(message), 1000);
         }
 
-
-
     }
 
         vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(temp.interval + (rand() % 20) + 10));
@@ -463,8 +462,6 @@ void vHumidSensorTask(void *pvParameters) {
         humid_data.value = BSP_HSENSOR_ReadHumidity() * (1 + error);
         xSemaphoreGive(xI2CMutex);
 
-//        milliseconds = __HAL_TIM_GET_COUNTER(&htim);
-//        milliseconds = HAL_GetTick();
         HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
         HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
 
